@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Personal Health & Energy Tracker</title>
 <style>
+  /* ---------- PART 1: LOOK & FEEL ----------
+     Just visual styling: colors, spacing, card layout, fonts.
+     No logic lives here. Feel free to change colors/fonts freely
+     without breaking any functionality below. */
   :root{
     --bg:#0f172a; --card:#1e293b; --accent:#38bdf8; --accent2:#34d399;
     --warn:#fbbf24; --danger:#f87171; --text:#e2e8f0; --muted:#94a3b8;
@@ -16,14 +20,25 @@
   }
   h1{font-size:1.6rem; margin-bottom:4px;}
   .subtitle{color:var(--muted); margin-top:0; margin-bottom:24px;}
-  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:20px;
+  }
   @media (max-width:850px){ .grid{grid-template-columns:1fr;} }
-  .card{ background:var(--card); border-radius:14px; padding:20px; box-shadow:0 4px 14px rgba(0,0,0,0.3); }
+  .card{
+    background:var(--card); border-radius:14px; padding:20px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.3);
+  }
   .card h2{margin-top:0; font-size:1.1rem; color:var(--accent);}
   label{display:block; font-size:0.85rem; margin:10px 0 4px; color:var(--muted);}
-  input, select, textarea, button{ width:100%; padding:9px 10px; border-radius:8px; border:1px solid #334155; background:#0b1220; color:var(--text); font-size:0.95rem; }
+  input, select, textarea, button{
+    width:100%; padding:9px 10px; border-radius:8px; border:1px solid #334155;
+    background:#0b1220; color:var(--text); font-size:0.95rem;
+  }
   textarea{resize:vertical; min-height:60px;}
-  button{ margin-top:14px; background:var(--accent); color:#04222f; font-weight:600; border:none; cursor:pointer; transition:opacity .15s; }
+  button{
+    margin-top:14px; background:var(--accent); color:#04222f; font-weight:600;
+    border:none; cursor:pointer; transition:opacity .15s;
+  }
   button:hover{opacity:.85;}
   button.secondary{background:#334155; color:var(--text);}
   button.danger{background:var(--danger); color:#2b0505;}
@@ -31,13 +46,28 @@
   th, td{text-align:left; padding:6px 8px; border-bottom:1px solid #334155;}
   th{color:var(--muted); font-weight:500;}
   .stat-row{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px;}
-  .stat{ flex:1; min-width:110px; background:#0b1220; border-radius:10px; padding:12px; text-align:center; }
+  .stat{
+    flex:1; min-width:110px; background:#0b1220; border-radius:10px;
+    padding:12px; text-align:center;
+  }
   .stat .num{font-size:1.4rem; font-weight:700; color:var(--accent2);}
   .stat .lab{font-size:0.75rem; color:var(--muted);}
-  .feedback-box{ background:#0b1220; border-left:4px solid var(--accent2); padding:14px; border-radius:8px; margin-top:12px; line-height:1.55; white-space:pre-wrap; }
-  .tag{ display:inline-block; padding:2px 8px; border-radius:20px; font-size:0.72rem; background:#334155; color:var(--text); margin-left:6px; }
-  .fatigue-bar-bg{ height:14px; background:#0b1220; border-radius:8px; overflow:hidden; margin-top:6px; }
-  .fatigue-bar-fill{ height:100%; background:linear-gradient(90deg,var(--accent2),var(--warn),var(--danger)); transition:width .3s; }
+  .feedback-box{
+    background:#0b1220; border-left:4px solid var(--accent2);
+    padding:14px; border-radius:8px; margin-top:12px; line-height:1.55;
+    white-space:pre-wrap;
+  }
+  .tag{
+    display:inline-block; padding:2px 8px; border-radius:20px;
+    font-size:0.72rem; background:#334155; color:var(--text); margin-left:6px;
+  }
+  .fatigue-bar-bg{
+    height:14px; background:#0b1220; border-radius:8px; overflow:hidden; margin-top:6px;
+  }
+  .fatigue-bar-fill{
+    height:100%; background:linear-gradient(90deg,var(--accent2),var(--warn),var(--danger));
+    transition:width .3s;
+  }
   .small{font-size:0.78rem; color:var(--muted);}
   .day-nav{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
   .day-nav button{width:auto; padding:6px 12px; margin-top:0;}
@@ -50,6 +80,15 @@
 
 <div class="grid">
 
+  <!-- ============================================================
+       PART 2: PROFILE CARD
+       Why it exists: calorie burn (METs) and calorie needs (BMR/TDEE)
+       both require body stats. We ask once and reuse forever.
+       Formula used: Mifflin-St Jeor equation, the standard BMR formula
+       recommended by dietitians:
+         Men:   BMR = 10*weight(kg) + 6.25*height(cm) - 5*age + 5
+         Women: BMR = 10*weight(kg) + 6.25*height(cm) - 5*age - 161
+       ============================================================ -->
   <div class="card" id="profileCard">
     <h2>👤 Your Profile</h2>
     <label for="pWeight">Weight (kg)</label>
@@ -80,6 +119,13 @@
     <p class="small" id="bmrDisplay"></p>
   </div>
 
+  <!-- ============================================================
+       PART 3: ACTIVITY LOGGER
+       This is the main input form. You type the task name yourself
+       (free text), pick a category (used to look up the MET value),
+       and enter how many minutes you spent. Calories are computed
+       automatically as: MET x weight(kg) x hours.
+       ============================================================ -->
   <div class="card" id="loggerCard">
     <h2>📝 Log an Activity</h2>
     <label for="aName">Activity name (write it yourself)</label>
@@ -118,6 +164,13 @@
 
 <div class="grid" style="margin-top:20px;">
 
+  <!-- ============================================================
+       PART 4: TODAY'S LOG TABLE + TOTALS
+       Reads all activities saved for the currently selected date
+       and lists them, plus sums up total minutes and total calories.
+       The date-nav lets you look back at previous days too, since
+       everything is saved by date key in localStorage.
+       ============================================================ -->
   <div class="card">
     <h2>📊 Daily Record</h2>
     <div class="day-nav">
@@ -137,9 +190,47 @@
     </table>
   </div>
 
+  <!-- ============================================================
+       PART 5 (NEW): LAST NIGHT'S SLEEP
+       Why it exists: the feedback engine previously only looked at
+       TODAY's activity fatigue to recommend tonight's sleep. But
+       recovery also depends on how rested you already are. If you
+       only slept 4 hours last night, you start today with a "sleep
+       debt" that today's fatigue score doesn't capture on its own.
+       This card asks two simple questions once per day:
+         1) How many hours did you actually sleep last night?
+         2) How good was that sleep, 1 (terrible) to 5 (excellent)?
+       Both values are saved into the same per-day record as the
+       activities, so they can be pulled into generateFeedback().
+       ============================================================ -->
+  <div class="card" id="sleepCard">
+    <h2>😴 Last Night's Sleep</h2>
+    <p class="small">Answer this once for the day you're logging — it helps the feedback engine judge whether you're already sleep-deprived before deciding how much sleep to recommend tonight.</p>
+
+    <label for="sHours">How many hours did you sleep last night?</label>
+    <input type="number" id="sHours" step="0.25" placeholder="e.g. 6.5">
+
+    <label for="sQuality">How good was that sleep? (1 = terrible/restless, 5 = excellent/deep)</label>
+    <input type="range" id="sQuality" min="1" max="5" value="3" oninput="sleepQualityLabel.innerText=this.value">
+    <p class="small">Sleep quality: <span id="sleepQualityLabel">3</span>/5</p>
+
+    <button onclick="saveSleep()">Save Last Night's Sleep</button>
+    <p class="small" id="sleepSavedDisplay"></p>
+  </div>
+
+  <!-- ============================================================
+       PART 6: THE "AGENT" — FEEDBACK ENGINE
+       This is the personalised health-monitoring part. It combines:
+       1) Your BMR/TDEE (from profile) -> suggested food intake (kcal + macros)
+       2) Today's logged calorie burn -> adjusts intake upward if you were active
+       3) Accumulated fatigue score -> recommended sleep hours tonight
+       4) NEW: last night's sleep hours + quality -> adjusts tonight's
+          recommendation up or down depending on existing sleep debt.
+       Click the button to (re)generate feedback for the selected day.
+       ============================================================ -->
   <div class="card">
     <h2>🤖 Personalised Feedback</h2>
-    <p class="small">Generates suggested food intake and ideal sleep time based on your profile and everything logged for the selected day.</p>
+    <p class="small">Generates suggested food intake and ideal sleep time based on your profile, today's activity log, and last night's sleep.</p>
     <button onclick="generateFeedback()">Generate Today's Feedback</button>
     <div class="feedback-box" id="feedbackOutput">No feedback generated yet. Log some activities and click the button above.</div>
   </div>
@@ -149,6 +240,20 @@
 <p class="small" style="margin-top:20px;">Data is stored only in this browser (localStorage). Clearing browser data will erase your history. Calorie/MET estimates and sleep ranges are general guidelines, not medical advice.</p>
 
 <script>
+/* =====================================================================
+   PART 7: DATA LAYER
+   All data lives in localStorage under two keys:
+     - "healthTracker_profile"   -> { weight, height, age, sex, activity }
+     - "healthTracker_days"      -> {
+          "2026-09-04": {
+             activities: [ {activity entries} ],
+             sleep: { hours, quality }   <-- NEW
+          }
+       }
+   Storing by date string means the log naturally separates per day
+   and persists between visits/browser restarts. The "sleep" field
+   is optional per day; if missing, feedback simply skips that part.
+   ===================================================================== */
 const PROFILE_KEY = "healthTracker_profile";
 const DAYS_KEY = "healthTracker_days";
 
@@ -165,8 +270,32 @@ function saveDays(d){
   localStorage.setItem(DAYS_KEY, JSON.stringify(d));
 }
 
+/* Ensures a day record always has the shape { activities: [], sleep: null },
+   even for days saved under the old format (a plain array). This keeps
+   old data working after this update instead of breaking it. */
+function getDayRecord(days, dateKey){
+  let rec = days[dateKey];
+  if(!rec){
+    rec = { activities: [], sleep: null };
+  } else if(Array.isArray(rec)){
+    rec = { activities: rec, sleep: null };
+  } else {
+    if(!rec.activities) rec.activities = [];
+    if(rec.sleep === undefined) rec.sleep = null;
+  }
+  days[dateKey] = rec;
+  return rec;
+}
+
+/* Currently viewed date, defaults to today, format YYYY-MM-DD */
 let currentDate = new Date().toISOString().slice(0,10);
 
+/* =====================================================================
+   PART 8: PROFILE LOGIC
+   Saves the form values and immediately computes BMR (resting burn)
+   and TDEE (total daily energy expenditure including lifestyle
+   activity level) so you can see your baseline calorie need right away.
+   ===================================================================== */
 function computeBMR(p){
   const base = 10*p.weight + 6.25*p.height - 5*p.age;
   return p.sex === "male" ? base + 5 : base - 161;
@@ -207,6 +336,14 @@ function initProfileForm(){
   }
 }
 
+/* =====================================================================
+   PART 9: ACTIVITY LOGGING LOGIC
+   Calorie formula: calories = MET x weight(kg) x duration(hours)
+   This is the same approach used by most fitness trackers and is
+   based on the Compendium of Physical Activities MET values.
+   Each entry also stores a 1-5 "effort" rating you set, which is
+   later combined with duration to build the day's fatigue score.
+   ===================================================================== */
 function logActivity(){
   const p = loadProfile();
   if(!p){
@@ -228,8 +365,8 @@ function logActivity(){
   const calories = met * p.weight * hours;
 
   const days = loadDays();
-  if(!days[currentDate]) days[currentDate] = [];
-  days[currentDate].push({
+  const rec = getDayRecord(days, currentDate);
+  rec.activities.push({
     name, met, minutes, effort, notes,
     calories: Math.round(calories),
     time: new Date().toLocaleTimeString()
@@ -245,15 +382,68 @@ function logActivity(){
 
 function deleteActivity(index){
   const days = loadDays();
-  days[currentDate].splice(index,1);
+  const rec = getDayRecord(days, currentDate);
+  rec.activities.splice(index,1);
   saveDays(days);
   renderDay();
 }
 
+/* =====================================================================
+   PART 10 (NEW): SLEEP LOGGING LOGIC
+   Saves last night's sleep hours + quality (1-5) into the current
+   day's record. This is intentionally separate from the activity
+   list because it's a single once-a-day input, not a repeatable
+   logged task.
+   ===================================================================== */
+function saveSleep(){
+  const hours = parseFloat(document.getElementById('sHours').value);
+  const quality = parseInt(document.getElementById('sQuality').value);
+
+  if(!hours || hours <= 0 || hours > 16){
+    alert("Please enter a realistic number of hours slept (e.g. 6.5).");
+    return;
+  }
+
+  const days = loadDays();
+  const rec = getDayRecord(days, currentDate);
+  rec.sleep = { hours, quality };
+  saveDays(days);
+
+  document.getElementById('sleepSavedDisplay').innerText =
+    `Saved: ${hours}h sleep, quality ${quality}/5 for ${currentDate}.`;
+}
+
+function loadSleepIntoForm(){
+  const days = loadDays();
+  const rec = getDayRecord(days, currentDate);
+  if(rec.sleep){
+    document.getElementById('sHours').value = rec.sleep.hours;
+    document.getElementById('sQuality').value = rec.sleep.quality;
+    document.getElementById('sleepQualityLabel').innerText = rec.sleep.quality;
+    document.getElementById('sleepSavedDisplay').innerText =
+      `Saved: ${rec.sleep.hours}h sleep, quality ${rec.sleep.quality}/5 for ${currentDate}.`;
+  } else {
+    document.getElementById('sHours').value = "";
+    document.getElementById('sQuality').value = 3;
+    document.getElementById('sleepQualityLabel').innerText = 3;
+    document.getElementById('sleepSavedDisplay').innerText = "No sleep data saved for this day yet.";
+  }
+}
+
+/* =====================================================================
+   PART 11: DAILY RENDER + FATIGUE SCORE
+   Fatigue score is a simple accumulating formula:
+     fatigue += effort_rating x (minutes / 30)
+   Meaning: a highly draining (effort 5) 30-minute activity adds 5
+   points; a light (effort 1) 30-minute activity adds only 1 point.
+   This lets long, intense days build up a high score, which later
+   drives the sleep recommendation.
+   ===================================================================== */
 function renderDay(){
   currentDate = document.getElementById('dateSelect').value || currentDate;
   const days = loadDays();
-  const entries = days[currentDate] || [];
+  const rec = getDayRecord(days, currentDate);
+  const entries = rec.activities;
 
   let totalMin = 0, totalCal = 0, fatigue = 0;
   const rows = entries.map((e, i) => {
@@ -274,8 +464,10 @@ function renderDay(){
   document.getElementById('totalCalories').innerText = totalCal.toFixed(0);
   document.getElementById('fatigueScore').innerText = fatigue.toFixed(1);
 
-  const fatiguePct = Math.min(100, (fatigue / 40) * 100);
+  const fatiguePct = Math.min(100, (fatigue / 40) * 100); // 40+ treated as "very high"
   document.getElementById('fatigueBar').style.width = fatiguePct + "%";
+
+  loadSleepIntoForm();
 }
 
 function changeDay(delta){
@@ -286,6 +478,41 @@ function changeDay(delta){
   renderDay();
 }
 
+/* =====================================================================
+   PART 12: FEEDBACK ENGINE (the "agent")
+   Two outputs are generated:
+
+   A) FOOD SUGGESTION
+      Suggested intake = TDEE (baseline need) + calories burned today
+      from logged activities (since TDEE's activity multiplier is a
+      general estimate, and logged exercise is extra on top).
+      Macro split used is a common general-purpose ratio:
+        45% carbs, 30% protein, 25% fat
+
+   B) SLEEP SUGGESTION
+      Based on sports-recovery research, adults generally need 7-9h
+      of sleep, with harder training days pushing toward 8-10h.
+      Base range comes from today's fatigue score:
+        fatigue 0-10   -> 7.0-7.5h  (light day)
+        fatigue 10-20  -> 7.5-8.5h  (moderate day)
+        fatigue 20-30  -> 8.5-9.5h  (hard day)
+        fatigue 30+    -> 9.5-10h   (exhausting day)
+
+      NEW - SLEEP DEBT ADJUSTMENT:
+      That base range is then shifted using last night's actual
+      sleep hours and quality, because someone who already slept
+      well needs less "extra" sleep than someone starting the day
+      sleep-deprived, even with identical activity fatigue:
+        - If last night's hours were BELOW the base range's minimum,
+          add the shortfall (capped at +1.5h) to push tonight's
+          target higher (paying back sleep debt).
+        - If last night's quality was low (1-2/5), add +0.5h,
+          since poor-quality sleep is less restorative even if long.
+        - If last night's hours were AT/ABOVE the base range's
+          maximum AND quality was good (4-5/5), subtract up to 0.5h,
+          since the body is already well-rested.
+      The result is clamped between 6h and 10h as a sane floor/ceiling.
+   ===================================================================== */
 function generateFeedback(){
   const p = loadProfile();
   if(!p){
@@ -293,7 +520,9 @@ function generateFeedback(){
     return;
   }
   const days = loadDays();
-  const entries = days[currentDate] || [];
+  const rec = getDayRecord(days, currentDate);
+  const entries = rec.activities;
+  const sleep = rec.sleep;
 
   let totalCal = 0, fatigue = 0, totalMin = 0;
   entries.forEach(e => {
@@ -306,15 +535,43 @@ function generateFeedback(){
   const tdee = bmr * p.activity;
   const suggestedIntake = tdee + totalCal;
 
-  const carbs = (suggestedIntake * 0.45) / 4;
-  const protein = (suggestedIntake * 0.30) / 4;
-  const fat = (suggestedIntake * 0.25) / 9;
+  const carbs = (suggestedIntake * 0.45) / 4;   // 4 kcal per gram of carbs
+  const protein = (suggestedIntake * 0.30) / 4; // 4 kcal per gram of protein
+  const fat = (suggestedIntake * 0.25) / 9;     // 9 kcal per gram of fat
 
   let sleepMin, sleepMax, tier;
   if(fatigue < 10){ sleepMin=7.0; sleepMax=7.5; tier="light"; }
   else if(fatigue < 20){ sleepMin=7.5; sleepMax=8.5; tier="moderate"; }
   else if(fatigue < 30){ sleepMin=8.5; sleepMax=9.5; tier="hard"; }
   else { sleepMin=9.5; sleepMax=10; tier="exhausting"; }
+
+  let sleepDebtNote = "No sleep data logged for last night — using activity-based estimate only.";
+  if(sleep && sleep.hours){
+    let adjustment = 0;
+    const shortfall = sleepMin - sleep.hours;
+    if(shortfall > 0){
+      adjustment += Math.min(shortfall, 1.5);
+    }
+    if(sleep.quality <= 2){
+      adjustment += 0.5;
+    }
+    if(sleep.hours >= sleepMax && sleep.quality >= 4){
+      adjustment -= 0.5;
+    }
+
+    sleepMin = Math.max(6, Math.min(10, sleepMin + adjustment));
+    sleepMax = Math.max(6, Math.min(10, sleepMax + adjustment));
+    if(sleepMax < sleepMin) sleepMax = sleepMin + 0.5;
+
+    sleepDebtNote = `Last night: ${sleep.hours}h sleep, quality ${sleep.quality}/5. `;
+    if(adjustment > 0){
+      sleepDebtNote += `Tonight's target increased by ~${adjustment.toFixed(1)}h to help pay back sleep debt / low sleep quality.`;
+    } else if(adjustment < 0){
+      sleepDebtNote += `Tonight's target eased slightly since you're already well-rested.`;
+    } else {
+      sleepDebtNote += `No adjustment needed — last night's sleep matched today's recovery needs.`;
+    }
+  }
 
   const feedback =
 `Based on ${entries.length} activity(ies) totalling ${totalMin} minutes and ${totalCal.toFixed(0)} kcal burned today:
@@ -331,6 +588,7 @@ Rough macro split (45% carbs / 30% protein / 25% fat):
 
 SLEEP SUGGESTION
 Today's fatigue score: ${fatigue.toFixed(1)} (${tier} day)
+${sleepDebtNote}
 Recommended sleep tonight: ${sleepMin.toFixed(1)}–${sleepMax.toFixed(1)} hours
 ${tier === "exhausting" ? "Consider also a short 20-30 min nap if possible." : ""}
 
@@ -339,6 +597,12 @@ Note: these are general estimates based on standard formulas (Mifflin-St Jeor fo
   document.getElementById('feedbackOutput').innerText = feedback;
 }
 
+/* =====================================================================
+   PART 13: PAGE INITIALISATION
+   Runs once when the page loads: sets the date picker to today,
+   loads any saved profile, and renders today's existing log (if any)
+   including last night's sleep entry.
+   ===================================================================== */
 window.onload = function(){
   document.getElementById('dateSelect').value = currentDate;
   initProfileForm();
