@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Personal Health & Energy Tracker</title>
+<style>
+  /* ---------- PART 1: LOOK & FEEL ----------
+     Just visual styling: colors, spacing, card layout, fonts.
+     No logic lives here. Feel free to change colors/fonts freely
+     without breaking any functionality below. */
+  :root{
+    --bg:#0f172a; --card:#1e293b; --accent:#38bdf8; --accent2:#34d399;
+    --warn:#fbbf24; --danger:#f87171; --text:#e2e8f0; --muted:#94a3b8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:'Segoe UI',Roboto,Arial,sans-serif;
+    background:var(--bg); color:var(--text); padding:24px;
+  }
+  h1{font-size:1.6rem; margin-bottom:4px;}
+  .subtitle{color:var(--muted); margin-top:0; margin-bottom:24px;}
+  .grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:20px;
+  }
+  @media (max-width:850px){ .grid{grid-template-columns:1fr;} }
+  .card{
+    background:var(--card); border-radius:14px; padding:20px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.3);
+  }
+  .card h2{margin-top:0; font-size:1.1rem; color:var(--accent);}
+  label{display:block; font-size:0.85rem; margin:10px 0 4px; color:var(--muted);}
+  input, select, textarea, button{
+    width:100%; padding:9px 10px; border-radius:8px; border:1px solid #334155;
+    background:#0b1220; color:var(--text); font-size:0.95rem;
+  }
+  textarea{resize:vertical; min-height:60px;}
+  button{
+    margin-top:14px; background:var(--accent); color:#04222f; font-weight:600;
+    border:none; cursor:pointer; transition:opacity .15s;
+  }
+  button:hover{opacity:.85;}
+  button.secondary{background:#334155; color:var(--text);}
+  button.danger{background:var(--danger); color:#2b0505;}
+  table{width:100%; border-collapse:collapse; margin-top:10px; font-size:0.85rem;}
+  th, td{text-align:left; padding:6px 8px; border-bottom:1px solid #334155;}
+  th{color:var(--muted); font-weight:500;}
+  .stat-row{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px;}
+  .stat{
+    flex:1; min-width:110px; background:#0b1220; border-radius:10px;
+    padding:12px; text-align:center;
+  }
+  .stat .num{font-size:1.4rem; font-weight:700; color:var(--accent2);}
+  .stat .lab{font-size:0.75rem; color:var(--muted);}
+  .feedback-box{
+    background:#0b1220; border-left:4px solid var(--accent2);
+    padding:14px; border-radius:8px; margin-top:12px; line-height:1.55;
+    white-space:pre-wrap;
+  }
+  .tag{
+    display:inline-block; padding:2px 8px; border-radius:20px;
+    font-size:0.72rem; background:#334155; color:var(--text); margin-left:6px;
+  }
+  .fatigue-bar-bg{
+    height:14px; background:#0b1220; border-radius:8px; overflow:hidden; margin-top:6px;
+  }
+  .fatigue-bar-fill{
+    height:100%; background:linear-gradient(90deg,var(--accent2),var(--warn),var(--danger));
+    transition:width .3s;
+  }
+  .small{font-size:0.78rem; color:var(--muted);}
+  .day-nav{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
+  .day-nav button{width:auto; padding:6px 12px; margin-top:0;}
+</style>
+</head>
+<body>
+
+<h1>🧭 Personal Health & Energy Tracker</h1>
+<p class="subtitle">Logs how long you spend on each activity, estimates calories burned, tracks accumulated fatigue, and gives you same-day feedback on food and sleep. Everything is stored locally in your browser (localStorage) — no server, no account.</p>
+
+<div class="grid">
+
+  <!-- ============================================================
+       PART 2: PROFILE CARD
+       Why it exists: calorie burn (METs) and calorie needs (BMR/TDEE)
+       both require body stats. We ask once and reuse forever.
+       Formula used: Mifflin-St Jeor equation, the standard BMR formula
+       recommended by dietitians:
+         Men:   BMR = 10*weight(kg) + 6.25*height(cm) - 5*age + 5
+         Women: BMR = 10*weight(kg) + 6.25*height(cm) - 5*age - 161
+       ============================================================ -->
+  <div class="card" id="profileCard">
+    <h2>👤 Your Profile</h2>
+    <label for="pWeight">Weight (kg)</label>
+    <input type="number" id="pWeight" placeholder="e.g. 65">
+
+    <label for="pHeight">Height (cm)</label>
+    <input type="number" id="pHeight" placeholder="e.g. 172">
+
+    <label for="pAge">Age</label>
+    <input type="number" id="pAge" placeholder="e.g. 21">
+
+    <label for="pSex">Sex (for BMR formula)</label>
+    <select id="pSex">
+      <option value="male">Male</option>
+      <option value="female">Female</option>
+    </select>
+
+    <label for="pActivity">General activity level (outside logged tasks)</label>
+    <select id="pActivity">
+      <option value="1.2">Sedentary (little/no exercise)</option>
+      <option value="1.375">Lightly active</option>
+      <option value="1.55" selected>Moderately active</option>
+      <option value="1.725">Very active</option>
+      <option value="1.9">Extra active / physical job</option>
+    </select>
+
+    <button onclick="saveProfile()">Save Profile</button>
+    <p class="small" id="bmrDisplay"></p>
+  </div>
+
+  <!-- ============================================================
+       PART 3: ACTIVITY LOGGER
+       This is the main input form. You type the task name yourself
+       (free text), pick a category (used to look up the MET value),
+       and enter how many minutes you spent. Calories are computed
+       automatically as: MET x weight(kg) x hours.
+       ============================================================ -->
+  <div class="card" id="loggerCard">
+    <h2>📝 Log an Activity</h2>
+    <label for="aName">Activity name (write it yourself)</label>
+    <input type="text" id="aName" placeholder="e.g. Studying economics, Swimming laps...">
+
+    <label for="aCategory">Category (used to estimate energy burn)</label>
+    <select id="aCategory">
+      <option value="1.3">Sleeping / lying down (MET 1.3)</option>
+      <option value="1.5">Sitting: study/desk work (MET 1.5)</option>
+      <option value="1.5">Sitting: video games (MET 1.5)</option>
+      <option value="2.0">Light chores / slow walking (MET 2.0)</option>
+      <option value="2.5">Playing musical instrument (MET 2.5)</option>
+      <option value="3.3">Walking, moderate pace (MET 3.3)</option>
+      <option value="4.0">Active video games / standing (MET 4.0)</option>
+      <option value="5.0">Brisk walking / light jog (MET 5.0)</option>
+      <option value="6.0">Swimming, leisurely (MET 6.0)</option>
+      <option value="7.0">Hiking / moderate sports (MET 7.0)</option>
+      <option value="8.5">Swimming, moderate-hard (MET 8.5)</option>
+      <option value="10.0">Running / vigorous training (MET 10.0)</option>
+    </select>
+
+    <label for="aMinutes">Duration (minutes)</label>
+    <input type="number" id="aMinutes" placeholder="e.g. 45">
+
+    <label for="aFatigue">How draining did it feel? (1 = easy, 5 = exhausting)</label>
+    <input type="range" id="aFatigue" min="1" max="5" value="3" oninput="fatigueLabel.innerText=this.value">
+    <p class="small">Perceived effort: <span id="fatigueLabel">3</span>/5 — this feeds the recovery/sleep estimate below, since two activities can burn similar calories but tire you out differently.</p>
+
+    <label for="aNotes">Notes (optional, write anything)</label>
+    <textarea id="aNotes" placeholder="How you felt, what you were doing, etc."></textarea>
+
+    <button onclick="logActivity()">Add Activity</button>
+  </div>
+
+</div>
+
+<div class="grid" style="margin-top:20px;">
+
+  <!-- ============================================================
+       PART 4: TODAY'S LOG TABLE + TOTALS
+       Reads all activities saved for the currently selected date
+       and lists them, plus sums up total minutes and total calories.
+       The date-nav lets you look back at previous days too, since
+       everything is saved by date key in localStorage.
+       ============================================================ -->
+  <div class="card">
+    <h2>📊 Daily Record</h2>
+    <div class="day-nav">
+      <button class="secondary" onclick="changeDay(-1)">◀ Prev</button>
+      <input type="date" id="dateSelect" onchange="renderDay()">
+      <button class="secondary" onclick="changeDay(1)">Next ▶</button>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="num" id="totalMinutes">0</div><div class="lab">Minutes logged</div></div>
+      <div class="stat"><div class="num" id="totalCalories">0</div><div class="lab">Calories burned</div></div>
+      <div class="stat"><div class="num" id="fatigueScore">0</div><div class="lab">Fatigue score</div></div>
+    </div>
+    <div class="fatigue-bar-bg"><div class="fatigue-bar-fill" id="fatigueBar" style="width:0%"></div></div>
+    <table>
+      <thead><tr><th>Activity</th><th>Min</th><th>kcal</th><th>Effort</th><th></th></tr></thead>
+      <tbody id="activityRows"></tbody>
+    </table>
+  </div>
+
+  <!-- ============================================================
+       PART 5: THE "AGENT" — FEEDBACK ENGINE
+       This is the personalised health-monitoring part. It combines:
+       1) Your BMR/TDEE (from profile) -> suggested food intake (kcal + macros)
+       2) Today's logged calorie burn -> adjusts intake upward if you were active
+       3) Accumulated fatigue score -> recommended sleep hours tonight,
+          using the sports-science recommendation that light effort needs
+          ~7-8h, moderate ~7.5-9h, and heavy/exhausting days need 8-10h
+          of sleep for full recovery.
+       Click the button to (re)generate feedback for the selected day.
+       ============================================================ -->
+  <div class="card">
+    <h2>🤖 Personalised Feedback</h2>
+    <p class="small">Generates suggested food intake and ideal sleep time based on your profile and everything logged for the selected day.</p>
+    <button onclick="generateFeedback()">Generate Today's Feedback</button>
+    <div class="feedback-box" id="feedbackOutput">No feedback generated yet. Log some activities and click the button above.</div>
+  </div>
+
+</div>
+
+<p class="small" style="margin-top:20px;">Data is stored only in this browser (localStorage). Clearing browser data will erase your history. Calorie/MET estimates and sleep ranges are general guidelines, not medical advice.</p>
+
+<script>
+/* =====================================================================
+   PART 6: DATA LAYER
+   All data lives in localStorage under two keys:
+     - "healthTracker_profile"   -> { weight, height, age, sex, activity }
+     - "healthTracker_days"      -> { "2026-09-04": [ {activity entries} ] }
+   Storing by date string means the log naturally separates per day
+   and persists between visits/browser restarts.
+   ===================================================================== */
+const PROFILE_KEY = "healthTracker_profile";
+const DAYS_KEY = "healthTracker_days";
+
+function loadProfile(){
+  return JSON.parse(localStorage.getItem(PROFILE_KEY) || "null");
+}
+function saveProfileData(p){
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+}
+function loadDays(){
+  return JSON.parse(localStorage.getItem(DAYS_KEY) || "{}");
+}
+function saveDays(d){
+  localStorage.setItem(DAYS_KEY, JSON.stringify(d));
+}
+
+/* Currently viewed date, defaults to today, format YYYY-MM-DD */
+let currentDate = new Date().toISOString().slice(0,10);
+
+/* =====================================================================
+   PART 7: PROFILE LOGIC
+   Saves the form values and immediately computes BMR (resting burn)
+   and TDEE (total daily energy expenditure including lifestyle
+   activity level) so you can see your baseline calorie need right away.
+   ===================================================================== */
+function computeBMR(p){
+  const base = 10*p.weight + 6.25*p.height - 5*p.age;
+  return p.sex === "male" ? base + 5 : base - 161;
+}
+
+function saveProfile(){
+  const p = {
+    weight: parseFloat(document.getElementById('pWeight').value),
+    height: parseFloat(document.getElementById('pHeight').value),
+    age: parseFloat(document.getElementById('pAge').value),
+    sex: document.getElementById('pSex').value,
+    activity: parseFloat(document.getElementById('pActivity').value)
+  };
+  if(!p.weight || !p.height || !p.age){
+    alert("Please fill in weight, height and age.");
+    return;
+  }
+  saveProfileData(p);
+  showBMR(p);
+}
+
+function showBMR(p){
+  const bmr = computeBMR(p);
+  const tdee = bmr * p.activity;
+  document.getElementById('bmrDisplay').innerText =
+    `Resting burn (BMR): ${bmr.toFixed(0)} kcal/day. Baseline daily need (TDEE): ${tdee.toFixed(0)} kcal/day.`;
+}
+
+function initProfileForm(){
+  const p = loadProfile();
+  if(p){
+    document.getElementById('pWeight').value = p.weight;
+    document.getElementById('pHeight').value = p.height;
+    document.getElementById('pAge').value = p.age;
+    document.getElementById('pSex').value = p.sex;
+    document.getElementById('pActivity').value = p.activity;
+    showBMR(p);
+  }
+}
+
+/* =====================================================================
+   PART 8: ACTIVITY LOGGING LOGIC
+   Calorie formula: calories = MET x weight(kg) x duration(hours)
+   This is the same approach used by most fitness trackers and is
+   based on the Compendium of Physical Activities MET values.
+   Each entry also stores a 1-5 "effort" rating you set, which is
+   later combined with duration to build the day's fatigue score.
+   ===================================================================== */
+function logActivity(){
+  const p = loadProfile();
+  if(!p){
+    alert("Please save your profile first (weight/height/age) so calories can be calculated.");
+    return;
+  }
+  const name = document.getElementById('aName').value.trim();
+  const met = parseFloat(document.getElementById('aCategory').value);
+  const minutes = parseFloat(document.getElementById('aMinutes').value);
+  const effort = parseInt(document.getElementById('aFatigue').value);
+  const notes = document.getElementById('aNotes').value.trim();
+
+  if(!name || !minutes || minutes <= 0){
+    alert("Please enter an activity name and a valid duration.");
+    return;
+  }
+
+  const hours = minutes / 60;
+  const calories = met * p.weight * hours;
+
+  const days = loadDays();
+  if(!days[currentDate]) days[currentDate] = [];
+  days[currentDate].push({
+    name, met, minutes, effort, notes,
+    calories: Math.round(calories),
+    time: new Date().toLocaleTimeString()
+  });
+  saveDays(days);
+
+  document.getElementById('aName').value = "";
+  document.getElementById('aMinutes').value = "";
+  document.getElementById('aNotes').value = "";
+
+  renderDay();
+}
+
+function deleteActivity(index){
+  const days = loadDays();
+  days[currentDate].splice(index,1);
+  saveDays(days);
+  renderDay();
+}
+
+/* =====================================================================
+   PART 9: DAILY RENDER + FATIGUE SCORE
+   Fatigue score is a simple accumulating formula:
+     fatigue += effort_rating x (minutes / 30)
+   Meaning: a highly draining (effort 5) 30-minute activity adds 5
+   points; a light (effort 1) 30-minute activity adds only 1 point.
+   This lets long, intense days build up a high score, which later
+   drives the sleep recommendation.
+   ===================================================================== */
+function renderDay(){
+  currentDate = document.getElementById('dateSelect').value || currentDate;
+  const days = loadDays();
+  const entries = days[currentDate] || [];
+
+  let totalMin = 0, totalCal = 0, fatigue = 0;
+  const rows = entries.map((e, i) => {
+    totalMin += e.minutes;
+    totalCal += e.calories;
+    fatigue += e.effort * (e.minutes / 30);
+    return `<tr>
+      <td>${e.name}${e.notes ? `<div class="small">${e.notes}</div>` : ""}</td>
+      <td>${e.minutes}</td>
+      <td>${e.calories}</td>
+      <td>${e.effort}/5</td>
+      <td><button class="danger" style="padding:4px 8px;width:auto;" onclick="deleteActivity(${i})">✕</button></td>
+    </tr>`;
+  }).join("");
+
+  document.getElementById('activityRows').innerHTML = rows || `<tr><td colspan="5" class="small">No activities logged yet for this day.</td></tr>`;
+  document.getElementById('totalMinutes').innerText = totalMin;
+  document.getElementById('totalCalories').innerText = totalCal.toFixed(0);
+  document.getElementById('fatigueScore').innerText = fatigue.toFixed(1);
+
+  const fatiguePct = Math.min(100, (fatigue / 40) * 100); // 40+ treated as "very high"
+  document.getElementById('fatigueBar').style.width = fatiguePct + "%";
+}
+
+function changeDay(delta){
+  const d = new Date(currentDate);
+  d.setDate(d.getDate() + delta);
+  currentDate = d.toISOString().slice(0,10);
+  document.getElementById('dateSelect').value = currentDate;
+  renderDay();
+}
+
+/* =====================================================================
+   PART 10: FEEDBACK ENGINE (the "agent")
+   Two outputs are generated:
+
+   A) FOOD SUGGESTION
+      Suggested intake = TDEE (baseline need) + calories burned today
+      from logged activities (since TDEE's activity multiplier is a
+      general estimate, and logged exercise is extra on top).
+      Macro split used is a common general-purpose ratio:
+        45% carbs, 30% protein, 25% fat
+      (You can change these percentages in the code if you prefer a
+      different split, e.g. higher protein for strength training.)
+
+   B) SLEEP SUGGESTION
+      Based on sports-recovery research, adults generally need 7-9h
+      of sleep, with harder training days pushing toward 8-10h.
+      This tool maps the day's fatigue score to a point in that range:
+        fatigue 0-10   -> 7.0-7.5h  (light day)
+        fatigue 10-20  -> 7.5-8.5h  (moderate day)
+        fatigue 20-30  -> 8.5-9.5h  (hard day)
+        fatigue 30+    -> 9.5-10h   (exhausting day)
+   ===================================================================== */
+function generateFeedback(){
+  const p = loadProfile();
+  if(!p){
+    document.getElementById('feedbackOutput').innerText = "Please save your profile first.";
+    return;
+  }
+  const days = loadDays();
+  const entries = days[currentDate] || [];
+
+  let totalCal = 0, fatigue = 0, totalMin = 0;
+  entries.forEach(e => {
+    totalCal += e.calories;
+    fatigue += e.effort * (e.minutes / 30);
+    totalMin += e.minutes;
+  });
+
+  const bmr = computeBMR(p);
+  const tdee = bmr * p.activity;
+  const suggestedIntake = tdee + totalCal;
+
+  const carbs = (suggestedIntake * 0.45) / 4;   // 4 kcal per gram of carbs
+  const protein = (suggestedIntake * 0.30) / 4; // 4 kcal per gram of protein
+  const fat = (suggestedIntake * 0.25) / 9;     // 9 kcal per gram of fat
+
+  let sleepMin, sleepMax, tier;
+  if(fatigue < 10){ sleepMin=7.0; sleepMax=7.5; tier="light"; }
+  else if(fatigue < 20){ sleepMin=7.5; sleepMax=8.5; tier="moderate"; }
+  else if(fatigue < 30){ sleepMin=8.5; sleepMax=9.5; tier="hard"; }
+  else { sleepMin=9.5; sleepMax=10; tier="exhausting"; }
+
+  const feedback =
+`Based on ${entries.length} activity(ies) totalling ${totalMin} minutes and ${totalCal.toFixed(0)} kcal burned today:
+
+FOOD INTAKE SUGGESTION
+Baseline need (BMR x activity level): ${tdee.toFixed(0)} kcal
++ Extra burned from logged activities: ${totalCal.toFixed(0)} kcal
+= Suggested total intake today: ${suggestedIntake.toFixed(0)} kcal
+
+Rough macro split (45% carbs / 30% protein / 25% fat):
+  Carbohydrates: ~${carbs.toFixed(0)} g
+  Protein: ~${protein.toFixed(0)} g
+  Fat: ~${fat.toFixed(0)} g
+
+SLEEP SUGGESTION
+Today's fatigue score: ${fatigue.toFixed(1)} (${tier} day)
+Recommended sleep tonight: ${sleepMin.toFixed(1)}–${sleepMax.toFixed(1)} hours
+${tier === "exhausting" ? "Consider also a short 20-30 min nap if possible." : ""}
+
+Note: these are general estimates based on standard formulas (Mifflin-St Jeor for calorie need, MET values for activity burn, and sports-recovery sleep ranges of 7-10h), not personalised medical advice.`;
+
+  document.getElementById('feedbackOutput').innerText = feedback;
+}
+
+/* =====================================================================
+   PART 11: PAGE INITIALISATION
+   Runs once when the page loads: sets the date picker to today,
+   loads any saved profile, and renders today's existing log (if any).
+   ===================================================================== */
+window.onload = function(){
+  document.getElementById('dateSelect').value = currentDate;
+  initProfileForm();
+  renderDay();
+};
+</script>
+
+</body>
+</html>
